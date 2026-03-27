@@ -5,4 +5,5 @@ flask
 werkzeug
 pydantic
 psycopg[binary]
+gunicorn
 
