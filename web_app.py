@@ -42,6 +42,8 @@ if not DATABASE_URL:
 ADMIN_UNLIMITED_USER_ID = 1
 FREE_USER_LLM_LIMIT = 2
 
+# Track if DB has been initialized
+_db_initialized = False
 
 MODE_OPTIONS = {
     "public_markets": "Public Markets (Wealth Management)",
@@ -68,6 +70,20 @@ def close_db(error):
     db = g.pop("db", None)
     if db is not None:
         db.close()
+
+
+@app.before_request
+def ensure_db_initialized():
+    """If DB init failed at startup, retry on first request."""
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            init_db()
+            _db_initialized = True
+            print("✅ DB initialized successfully on first request")
+        except Exception as e:
+            print(f"⚠️  DB init still failing: {e}")
+            # Let the route handle it (some routes don't need DB)
 
 
 def init_db():
@@ -129,7 +145,13 @@ def init_db():
     db.close()
 
 
-init_db()
+# Try to initialize DB at startup, but don't crash if connection fails
+try:
+    init_db()
+    _db_initialized = True
+except Exception as e:
+    print(f"⚠️  DB init failed at startup (will retry on first request): {e}")
+    _db_initialized = False
 
 
 def current_user():
