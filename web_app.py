@@ -80,9 +80,9 @@ def ensure_db_initialized():
         try:
             init_db()
             _db_initialized = True
-            print("✅ DB initialized successfully on first request")
+            print("DB initialized successfully on first request")
         except Exception as e:
-            print(f"⚠️  DB init still failing: {e}")
+            print(f" DB init still failing: {e}")
             # Let the route handle it (some routes don't need DB)
 
 
@@ -150,7 +150,7 @@ try:
     init_db()
     _db_initialized = True
 except Exception as e:
-    print(f"⚠️  DB init failed at startup (will retry on first request): {e}")
+    print(f"DB init failed at startup (will retry on first request): {e}")
     _db_initialized = False
 
 
