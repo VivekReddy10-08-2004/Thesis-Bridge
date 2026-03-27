@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Memo Output | Strategic Opportunity Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <div>
+        <p class="eyebrow">Decision Brief</p>
+        <h1>{{ thesis }}</h1>
+    </div>
+    <div class="inline-actions">
+        <a class="btn ghost" href="{{ url_for('dashboard') }}">Back</a>
+        <a class="btn ghost" href="{{ url_for('download_report_csv', report_id=report_id) }}">Download CSV</a>
+        <a class="btn ghost" href="{{ url_for('download_report_markdown', report_id=report_id) }}">Download Memo</a>
+        <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</header>
+
+<main class="report-grid">
+    <section class="card reveal">
+        <div class="focus-grid">
+            <article class="focus-card">
+                <h2>Snapshot</h2>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <p>Mode</p>
+                        <strong>{{ mode_label }}</strong>
+                    </div>
+                    <div class="metric">
+                        <p>Confidence</p>
+                        <strong>{{ confidence }}/10</strong>
+                    </div>
+                    <div class="metric">
+                        <p>Baseline</p>
+                        <strong>${{ baseline_revenue }}</strong>
+                    </div>
+                    <div class="metric">
+                        <p>Generated</p>
+                        <strong>{{ created_at }}</strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="focus-card">
+                <h2>Executive Summary</h2>
+                <p>{{ report.get('executive_summary', 'No summary available.') }}</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="card reveal delay-1">
+        <h2>Metric Evidence Ledger (Excel-Ready)</h2>
+        <p class="sub">Research support only. Validate each metric through source review before making decisions.</p>
+        <div class="ledger-actions">
+            <button type="button" class="btn solid export-btn" id="showLedgerBtn">Show Table</button>
+            <a class="btn solid export-btn" href="{{ url_for('download_report_csv', report_id=report_id) }}">Download CSV</a>
+        </div>
+
+        <dialog id="ledgerDialog" class="ledger-dialog">
+            <div class="ledger-dialog-header">
+                <h3>Metric Evidence Ledger</h3>
+                <button type="button" class="btn ghost" id="closeLedgerBtn">Close</button>
+            </div>
+
+            <div class="table-wrap table-wrap-modal">
+                <table class="data-table data-table-modal">
+                    <thead>
+                        <tr>
+                            {% for col_name, col_label in table_columns %}
+                            <th class="col-medium">{{ col_label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in excel_rows %}
+                        <tr>
+                            {% for col_name, col_label in table_columns %}
+                            <td class="col-medium">
+                                {% if col_name == 'metric_source_url' %}
+                                    {% if row.get(col_name) %}
+                                    <a href="{{ row.get(col_name) }}" target="_blank" rel="noopener">Verify Source</a>
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                {% elif col_name in ['current_period', 'delta', 'after_value', 'impact'] and row.get('metric_source_url') %}
+                                    <a href="{{ row.get('metric_source_url') }}" target="_blank" rel="noopener">{{ row.get(col_name, '') }}</a>
+                                {% else %}
+                                    {{ row.get(col_name, '') }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ table_columns|length }}">No rows available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </dialog>
+
+        <section class="analysis-section">
+            <h2>Analysis Summary</h2>
+
+            <h3>MVP Quality Gates</h3>
+            <div class="gate-grid">
+                <article class="gate-card {{ 'pass' if qa.source_gate_pass else 'fail' }}">
+                    <p>Source Coverage</p>
+                    <strong>{{ qa.source_count }} sources</strong>
+                    <span>{{ 'PASS (>= 3)' if qa.source_gate_pass else 'FAIL (< 3)' }}</span>
+                </article>
+                <article class="gate-card {{ 'pass' if qa.metric_gate_pass else 'fail' }}">
+                    <p>Quant Coverage</p>
+                    <strong>{{ qa.metric_count }} metrics</strong>
+                    <span>{{ 'PASS (>= 5)' if qa.metric_gate_pass else 'FAIL (< 5)' }}</span>
+                </article>
+                <article class="gate-card {{ 'fail' if qa.weak_source_count > 0 else 'pass' }}">
+                    <p>Weak Evidence Flags</p>
+                    <strong>{{ qa.weak_source_count }}</strong>
+                    <span>{{ 'Review needed' if qa.weak_source_count > 0 else 'No weak flags' }}</span>
+                </article>
+            </div>
+
+            {% if qa.weak_sources %}
+            <ul class="plain-list">
+                {% for src in qa.weak_sources %}
+                <li><strong>{{ src.get('title', 'Untitled Source') }}</strong>: {{ src.get('weakness_note', 'Weak evidence identified.') }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <h3>Scenario Projection</h3>
+            <div class="scenario-grid">
+                <article class="scenario-card">
+                    <p>Downside</p>
+                    <strong>${{ report.get('scenario_projection', {}).get('downside', {}).get('projected_impact_usd', 0) }}</strong>
+                    <span>{{ report.get('scenario_projection', {}).get('downside', {}).get('assumption', 'Not provided') }}</span>
+                </article>
+                <article class="scenario-card">
+                    <p>Base</p>
+                    <strong>${{ report.get('scenario_projection', {}).get('base', {}).get('projected_impact_usd', 0) }}</strong>
+                    <span>{{ report.get('scenario_projection', {}).get('base', {}).get('assumption', 'Not provided') }}</span>
+                </article>
+                <article class="scenario-card">
+                    <p>Upside</p>
+                    <strong>${{ report.get('scenario_projection', {}).get('upside', {}).get('projected_impact_usd', 0) }}</strong>
+                    <span>{{ report.get('scenario_projection', {}).get('upside', {}).get('assumption', 'Not provided') }}</span>
+                </article>
+            </div>
+
+            <h3>Ranked Evidence</h3>
+            <div class="evidence-list">
+            {% for item in report.get('ranked_evidence', []) %}
+                <article class="evidence-item">
+                    <div>
+                        <span class="score">{{ item.get('score', 0) }}/10</span>
+                        <h4>{{ item.get('title', 'Untitled Source') }}</h4>
+                    </div>
+                    <a href="{{ item.get('source', '#') }}" target="_blank" rel="noopener">Open Source</a>
+                    <p>{{ item.get('why_it_matters', '') }}</p>
+
+                    {% if item.get('extracted_metrics') %}
+                    <ul class="metric-points">
+                        {% for m in item.get('extracted_metrics', []) %}
+                        <li>{{ m.get('metric', 'Metric') }}: {{ m.get('value', 'N/A') }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </article>
+            {% endfor %}
+            </div>
+        </section>
+
+        <h2>Risks and Caveats</h2>
+        <ul class="plain-list">
+            {% for risk in report.get('risks_and_caveats', []) %}
+            <li>{{ risk }}</li>
+            {% else %}
+            <li>No caveats returned.</li>
+            {% endfor %}
+        </ul>
+
+        <h2>Next Diligence Steps</h2>
+        <ul class="plain-list">
+            {% for step in report.get('next_diligence_steps', []) %}
+            <li>{{ step }}</li>
+            {% else %}
+            <li>No follow-up steps returned.</li>
+            {% endfor %}
+        </ul>
+    </section>
+</main>
+
+<script>
+    const ledgerDialog = document.getElementById('ledgerDialog');
+    const showLedgerBtn = document.getElementById('showLedgerBtn');
+    const closeLedgerBtn = document.getElementById('closeLedgerBtn');
+
+    if (ledgerDialog && showLedgerBtn && closeLedgerBtn) {
+        showLedgerBtn.addEventListener('click', () => ledgerDialog.showModal());
+        closeLedgerBtn.addEventListener('click', () => ledgerDialog.close());
+        ledgerDialog.addEventListener('click', (event) => {
+            const bounds = ledgerDialog.getBoundingClientRect();
+            const inDialog = (
+                event.clientX >= bounds.left &&
+                event.clientX <= bounds.right &&
+                event.clientY >= bounds.top &&
+                event.clientY <= bounds.bottom
+            );
+            if (!inDialog) {
+                ledgerDialog.close();
+            }
+        });
+    }
+</script>
+</body>
+</html>

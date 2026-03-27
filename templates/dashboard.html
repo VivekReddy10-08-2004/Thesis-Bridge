@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard | Strategic Opportunity Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <div>
+        <p class="eyebrow">Strategic Opportunity Engine</p>
+        <h1>Welcome, {{ user['email'] }}</h1>
+    </div>
+    <div class="inline-actions">
+        <a class="btn ghost" href="{{ url_for('insights') }}">Data Insights</a>
+        <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</header>
+
+<main class="dashboard-grid">
+    <section class="card reveal">
+        <h2>Run New Thesis</h2>
+        <p class="sub">One thesis in, one memo out.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-wrap">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="post" class="stack">
+            <label>Research Mode</label>
+            <select name="mode" required>
+                {% for mode_key, mode_label in mode_options.items() %}
+                <option value="{{ mode_key }}">{{ mode_label }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Investment Thesis</label>
+            <textarea name="thesis" rows="6" placeholder="Should a boutique firm adopt direct indexing for taxable U.S. equity portfolios over the next 12 months?" required></textarea>
+
+            <label>Baseline Revenue (USD)</label>
+            <input type="number" name="baseline_revenue" min="1" value="1000000" required>
+
+            <button type="submit" class="btn solid">Generate Memo</button>
+        </form>
+    </section>
+
+    <section class="card reveal delay-1">
+        <h2>Recent Memos</h2>
+        <p class="sub">Your latest outputs.</p>
+        <div class="memo-list">
+            {% if reports %}
+                {% for r in reports %}
+                <a class="memo-item" href="{{ url_for('view_report', report_id=r['id']) }}">
+                    <h3>{{ r['thesis'] }}</h3>
+                    <p>{{ mode_options.get(r['mode'], r['mode']) }}</p>
+                    <p>Confidence: {{ r['confidence_score'] }}/10</p>
+                    <span>{{ r['created_at'] }}</span>
+                </a>
+                {% endfor %}
+            {% else %}
+                <p class="empty">No memos yet. Run your first thesis.</p>
+            {% endif %}
+        </div>
+    </section>
+</main>
+</body>
+</html>

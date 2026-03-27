@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thesis Bridge Strategic Opportunity Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="auth-page">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <main class="auth-shell">
+        <section class="brand-panel reveal">
+            <p class="eyebrow">Thesis Bridge</p>
+            <h1>Turn a thesis into a decision-ready memo in minutes.</h1>
+            <p class="lead">Your analysts keep judgment. The app handles evidence collection, quant extraction, and scenario framing.</p>
+            <ul class="feature-list">
+                <li>Source-backed ranking</li>
+                <li>Scenario math with assumptions</li>
+                <li>Memo output for investment discussions</li>
+            </ul>
+        </section>
+
+        <section class="card reveal delay-1">
+            <h2>Access Workspace</h2>
+            <p class="sub">Create an account or sign in.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-wrap">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="post" class="stack">
+                <label>Email</label>
+                <input type="email" name="email" placeholder="analyst@firm.com" required>
+
+                <label>Password</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+
+                <div class="inline-actions">
+                    <button type="submit" name="action" value="login" class="btn solid">Login</button>
+                    <button type="submit" name="action" value="signup" class="btn ghost">Sign Up</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

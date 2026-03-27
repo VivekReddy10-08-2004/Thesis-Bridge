@@ -1,0 +1,8 @@
+tavily
+groq
+dotenv
+flask
+werkzeug
+pydantic
+psycopg[binary]
+

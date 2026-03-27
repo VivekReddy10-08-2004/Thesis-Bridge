@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Data Insights | Strategic Opportunity Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <div>
+        <p class="eyebrow">Database Visualizer</p>
+        <h1>Data Insights</h1>
+        <p class="sub">Tracked records for {{ user['email'] }}</p>
+    </div>
+    <div class="inline-actions">
+        <a class="btn ghost" href="{{ url_for('dashboard') }}">Back</a>
+        <a class="btn ghost" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</header>
+
+<main class="report-grid">
+    <section class="card reveal">
+        <h2>Database Snapshot</h2>
+        <div class="stats-grid">
+            <article class="stat-card">
+                <p>Total Reports</p>
+                <strong>{{ report_count }}</strong>
+            </article>
+            <article class="stat-card">
+                <p>Average Confidence</p>
+                <strong>{{ avg_confidence }}</strong>
+            </article>
+            <article class="stat-card">
+                <p>Highest Confidence</p>
+                <strong>{{ max_confidence }}</strong>
+            </article>
+            <article class="stat-card">
+                <p>Lowest Confidence</p>
+                <strong>{{ min_confidence }}</strong>
+            </article>
+        </div>
+    </section>
+
+    <section class="card reveal delay-1">
+        <h2>Mode Split</h2>
+        {% if mode_breakdown %}
+            <div class="bar-list">
+                {% for row in mode_breakdown %}
+                <div class="bar-item">
+                    <div class="bar-meta">
+                        <span>{{ row.mode_label }}</span>
+                        <span>{{ row.count }}</span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" data-width="{{ row.width_pct }}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No data available yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="card reveal">
+        <h2>Confidence Distribution</h2>
+        {% if confidence_distribution %}
+            <div class="bar-list">
+                {% for row in confidence_distribution %}
+                <div class="bar-item">
+                    <div class="bar-meta">
+                        <span>Score {{ row.score }}</span>
+                        <span>{{ row.count }}</span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" data-width="{{ row.width_pct }}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No confidence scores yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="card reveal delay-1">
+        <h2>Top Theses</h2>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Thesis</th>
+                        <th>Runs</th>
+                        <th>Avg Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in top_theses %}
+                    <tr>
+                        <td>{{ row.thesis }}</td>
+                        <td>{{ row.run_count }}</td>
+                        <td>{{ row.avg_confidence }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3">No thesis history yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card reveal">
+        <h2>Latest Reports</h2>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Thesis</th>
+                        <th>Mode</th>
+                        <th>Confidence</th>
+                        <th>Created</th>
+                        <th>Open</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in latest_reports %}
+                    <tr>
+                        <td>{{ row.id }}</td>
+                        <td>{{ row.thesis }}</td>
+                        <td>{{ mode_options.get(row.mode, row.mode) }}</td>
+                        <td>{{ row.confidence_score }}</td>
+                        <td>{{ row.created_at }}</td>
+                        <td><a href="{{ url_for('view_report', report_id=row.id) }}">View</a></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">No reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+<script>
+    document.querySelectorAll('.bar-fill[data-width]').forEach((node) => {
+        const width = Number(node.dataset.width || '0');
+        node.style.width = `${Math.max(0, Math.min(100, width))}%`;
+    });
+</script>
+</body>
+</html>
