@@ -13,12 +13,18 @@
     box-sizing: border-box;
 }
 
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     font-family: "Sora", sans-serif;
     color: var(--text);
     background: var(--bg);
+    overflow-x: hidden;
 }
 
 h1,
@@ -43,10 +49,12 @@ a {
 a {
     color: var(--text);
     text-decoration: none;
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.08);
 }
 
 .auth-page {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .bg-orb {
@@ -76,7 +84,8 @@ a {
     max-width: 1100px;
     margin: 0 auto;
     min-height: 100vh;
-    padding: 40px 20px;
+    min-height: 100dvh;
+    padding: max(40px, env(safe-area-inset-top, 0)) max(20px, env(safe-area-inset-right, 0)) max(40px, env(safe-area-inset-bottom, 0)) max(20px, env(safe-area-inset-left, 0));
     display: grid;
     grid-template-columns: 1.1fr 1fr;
     gap: 24px;
@@ -128,12 +137,14 @@ input,
 select,
 textarea {
     width: 100%;
+    max-width: 100%;
     border: 1px solid var(--stroke);
     background: var(--panel-soft);
     color: var(--text);
     border-radius: 12px;
     padding: 12px 14px;
     font-family: "Sora", sans-serif;
+    font-size: 1rem;
 }
 
 textarea {
@@ -151,9 +162,14 @@ textarea:focus {
     border: 1px solid var(--stroke);
     border-radius: 12px;
     padding: 10px 14px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     font-family: "Sora", sans-serif;
     font-weight: 600;
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.12);
 }
 
 .btn.solid {
@@ -181,18 +197,24 @@ textarea:focus {
 .topbar {
     max-width: 1180px;
     margin: 0 auto;
-    padding: 24px 20px 10px;
+    padding: max(24px, env(safe-area-inset-top, 0)) max(20px, env(safe-area-inset-right, 0)) 10px max(20px, env(safe-area-inset-left, 0));
     display: flex;
     justify-content: space-between;
     gap: 12px;
     align-items: center;
 }
 
+.topbar h1 {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: clamp(1.15rem, 4.2vw, 1.75rem);
+}
+
 .dashboard-grid,
 .report-grid {
     max-width: 1180px;
     margin: 0 auto;
-    padding: 16px 20px 28px;
+    padding: 16px max(20px, env(safe-area-inset-right, 0)) max(28px, env(safe-area-inset-bottom, 0)) max(20px, env(safe-area-inset-left, 0));
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     gap: 18px;
@@ -218,6 +240,8 @@ textarea:focus {
 .memo-item h3 {
     font-size: 0.95rem;
     margin-bottom: 6px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .memo-item p,
@@ -450,6 +474,8 @@ textarea:focus {
 
 .table-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
     border: 1px solid var(--stroke);
     border-radius: 12px;
     background: var(--panel-soft);
@@ -458,12 +484,16 @@ textarea:focus {
 
 .ledger-dialog {
     width: min(97vw, 1700px);
+    max-width: calc(100vw - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0));
     max-height: 88vh;
+    max-height: 88dvh;
     border: 1px solid var(--stroke);
     border-radius: 14px;
     background: var(--panel);
     color: var(--text);
     padding: 14px;
+    margin: auto;
+    box-sizing: border-box;
 }
 
 .ledger-dialog::backdrop {
@@ -480,7 +510,10 @@ textarea:focus {
 
 .table-wrap-modal {
     max-height: 70vh;
+    max-height: 70dvh;
     overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     margin-bottom: 0;
 }
 
@@ -648,6 +681,19 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 
+    .auth-shell {
+        padding: max(24px, env(safe-area-inset-top, 0)) max(16px, env(safe-area-inset-right, 0)) max(28px, env(safe-area-inset-bottom, 0)) max(16px, env(safe-area-inset-left, 0));
+        min-height: min-content;
+    }
+
+    .dashboard-grid,
+    .report-grid {
+        padding-top: 16px;
+        padding-left: max(16px, env(safe-area-inset-left, 0));
+        padding-right: max(16px, env(safe-area-inset-right, 0));
+        padding-bottom: max(28px, env(safe-area-inset-bottom, 0));
+    }
+
     .metric-grid {
         grid-template-columns: 1fr;
     }
@@ -666,7 +712,24 @@ textarea:focus {
 
     .topbar {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        padding-top: max(20px, env(safe-area-inset-top, 0));
+        padding-left: max(16px, env(safe-area-inset-left, 0));
+        padding-right: max(16px, env(safe-area-inset-right, 0));
+        padding-bottom: 10px;
+    }
+
+    .topbar .inline-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .topbar .inline-actions > .btn,
+    .topbar .inline-actions > a.btn {
+        width: 100%;
+        text-align: center;
     }
 
     .ledger-actions {
@@ -677,5 +740,41 @@ textarea:focus {
     .export-btn {
         width: 100%;
         text-align: center;
+    }
+
+    .ledger-dialog {
+        position: fixed;
+        inset: 0;
+        width: auto;
+        max-width: none;
+        height: auto;
+        max-height: none;
+        min-height: 100dvh;
+        border-radius: 0;
+        padding: max(12px, env(safe-area-inset-top, 0)) max(12px, env(safe-area-inset-right, 0)) max(12px, env(safe-area-inset-bottom, 0)) max(12px, env(safe-area-inset-left, 0));
+    }
+
+    .table-wrap-modal {
+        max-height: calc(100dvh - 120px);
+        max-height: calc(100vh - 120px);
+    }
+
+    .memo-raw {
+        max-height: min(72vh, 60dvh);
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-shell .inline-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .auth-shell .inline-actions .btn {
+        width: 100%;
+    }
+
+    .bg-orb {
+        opacity: 0.65;
     }
 }
