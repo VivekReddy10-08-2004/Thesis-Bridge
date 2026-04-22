@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, flash, g, redirect, render_template, request, send_from_directory, session, url_for, Response
+from flask import Flask, flash, g, jsonify, redirect, render_template, request, send_from_directory, session, url_for, Response
 import psycopg
 from psycopg.rows import dict_row
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -60,8 +60,24 @@ def normalize_mode(value):
 def get_db():
     """Get a request-scoped Postgres connection."""
     if "db" not in g:
-        g.db = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        try:
+            g.db = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        except psycopg.OperationalError as exc:
+            app.logger.exception("Database connection failed")
+            raise psycopg.OperationalError(_friendly_db_error_message(exc)) from exc
     return g.db
+
+
+def _friendly_db_error_message(exc):
+    """Return a user-facing hint for common Supabase connection failures."""
+    raw = str(exc)
+    if "tenant/user" in raw and "not found" in raw:
+        return (
+            "Database connection failed: Supabase pooler tenant/user was not found. "
+            "Re-copy DATABASE_URL from Supabase Settings > Database and ensure the "
+            "project ref in username (postgres.<project_ref>) matches your active project."
+        )
+    return "Database connection failed. Verify DATABASE_URL and restart the app."
 
 
 @app.teardown_appcontext
@@ -84,6 +100,17 @@ def ensure_db_initialized():
         except Exception as e:
             print(f" DB init still failing: {e}")
             # Let the route handle it (some routes don't need DB)
+
+
+@app.errorhandler(psycopg.OperationalError)
+def handle_db_operational_error(exc):
+    """Convert DB connection failures into helpful UX responses."""
+    message = str(exc)
+    if request.path.startswith("/insights/data"):
+        return jsonify({"error": "database_unavailable", "message": message}), 503
+
+    flash(message, "error")
+    return redirect(url_for("auth"))
 
 
 def init_db():
@@ -514,6 +541,44 @@ def dashboard():
     return render_template("dashboard.html", user=user, reports=reports, mode_options=MODE_OPTIONS)
 
 
+def _unlink_memo_file(filename):
+    """Remove a memo file under REPORTS_DIR if the name is a simple basename."""
+    name = (filename or "").strip()
+    if not name or "/" in name or "\\" in name or ".." in name:
+        return
+    base = REPORTS_DIR.resolve()
+    path = (REPORTS_DIR / name).resolve()
+    if path.parent != base or not path.is_file():
+        return
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+@app.route("/dashboard/clear-memos", methods=["POST"])
+def clear_recent_memos():
+    """Delete this user's report rows and associated markdown files on disk."""
+    gate = login_required()
+    if gate:
+        return gate
+
+    user = current_user()
+    db = get_db()
+    rows = db.execute(
+        "SELECT markdown_path FROM reports WHERE user_id = %s",
+        (user["id"],),
+    ).fetchall()
+    paths = [row.get("markdown_path") for row in rows]
+    db.execute("DELETE FROM reports WHERE user_id = %s", (user["id"],))
+    db.commit()
+    for path in paths:
+        _unlink_memo_file(path)
+
+    flash("Recent memos cleared.", "success")
+    return redirect(url_for("dashboard"))
+
+
 @app.route("/insights")
 def insights():
     """Render aggregate stats derived from the current user's report history."""
@@ -615,6 +680,96 @@ def insights():
         confidence_distribution=confidence_distribution,
         top_theses=top_theses,
         latest_reports=latest_reports,
+    )
+
+
+@app.route("/insights/data")
+def insights_data():
+    """Return insights metrics as JSON for chart rendering and refresh."""
+    gate = login_required()
+    if gate:
+        return jsonify({"error": "unauthorized"}), 401
+
+    user = current_user()
+    db = get_db()
+
+    totals = db.execute(
+        """
+        SELECT
+            COUNT(*) AS report_count,
+            COALESCE(AVG(confidence_score), 0) AS avg_confidence,
+            COALESCE(MAX(confidence_score), 0) AS max_confidence,
+            COALESCE(MIN(confidence_score), 0) AS min_confidence
+        FROM reports
+        WHERE user_id = %s
+        """,
+        (user["id"],),
+    ).fetchone()
+
+    mode_rows = db.execute(
+        """
+        SELECT mode, COUNT(*) AS count
+        FROM reports
+        WHERE user_id = %s
+        GROUP BY mode
+        ORDER BY count DESC
+        """,
+        (user["id"],),
+    ).fetchall()
+
+    confidence_rows = db.execute(
+        """
+        SELECT confidence_score, COUNT(*) AS count
+        FROM reports
+        WHERE user_id = %s
+        GROUP BY confidence_score
+        ORDER BY confidence_score ASC
+        """,
+        (user["id"],),
+    ).fetchall()
+
+    top_theses = db.execute(
+        """
+        SELECT thesis, COUNT(*) AS run_count, ROUND(AVG(confidence_score), 2) AS avg_confidence
+        FROM reports
+        WHERE user_id = %s
+        GROUP BY thesis
+        ORDER BY run_count DESC, avg_confidence DESC
+        LIMIT 8
+        """,
+        (user["id"],),
+    ).fetchall()
+
+    return jsonify(
+        {
+            "report_count": int(totals["report_count"] or 0),
+            "avg_confidence": round(float(totals["avg_confidence"] or 0), 2),
+            "max_confidence": int(totals["max_confidence"] or 0),
+            "min_confidence": int(totals["min_confidence"] or 0),
+            "mode_breakdown": [
+                {
+                    "mode": row["mode"],
+                    "mode_label": MODE_OPTIONS.get(row["mode"], row["mode"]),
+                    "count": int(row["count"] or 0),
+                }
+                for row in mode_rows
+            ],
+            "confidence_distribution": [
+                {
+                    "score": int(row["confidence_score"] or 0),
+                    "count": int(row["count"] or 0),
+                }
+                for row in confidence_rows
+            ],
+            "top_theses": [
+                {
+                    "thesis": row["thesis"],
+                    "run_count": int(row["run_count"] or 0),
+                    "avg_confidence": float(row["avg_confidence"] or 0),
+                }
+                for row in top_theses
+            ],
+        }
     )
 
 
@@ -728,6 +883,9 @@ def logout():
 
 
 if __name__ == "__main__":
-    init_db()
+    # Keep startup resilient: DB initialization is already attempted above and
+    # retried per request. Don't hard-fail local app boot here.
+    if not _db_initialized:
+        print("Starting with DB not yet initialized; visit /auth after fixing DATABASE_URL.")
     # Use a production WSGI server for deployment; debug mode is local-only.
     app.run(debug=True)

@@ -194,6 +194,22 @@ textarea:focus {
     color: var(--muted);
 }
 
+.card-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.card-section-head h2 {
+    margin-bottom: 4px;
+}
+
+.card-section-head .sub {
+    margin-top: 0;
+}
+
 .topbar {
     max-width: 1180px;
     margin: 0 auto;
@@ -446,6 +462,16 @@ textarea:focus {
     background: #fff;
 }
 
+.chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+
+.chart-wrap-tall {
+    height: 360px;
+}
+
 .plain-list {
     margin: 0;
     padding-left: 18px;
@@ -675,6 +701,19 @@ textarea:focus {
 }
 
 @media (max-width: 930px) {
+    .card-section-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .card-section-head .inline-actions {
+        width: 100%;
+    }
+
+    .card-section-head .inline-actions .btn {
+        width: 100%;
+    }
+
     .auth-shell,
     .dashboard-grid,
     .report-grid {

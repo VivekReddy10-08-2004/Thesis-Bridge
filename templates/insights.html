@@ -29,91 +29,45 @@
         <div class="stats-grid">
             <article class="stat-card">
                 <p>Total Reports</p>
-                <strong>{{ report_count }}</strong>
+                <strong id="stat-report-count">{{ report_count }}</strong>
             </article>
             <article class="stat-card">
                 <p>Average Confidence</p>
-                <strong>{{ avg_confidence }}</strong>
+                <strong id="stat-avg-confidence">{{ avg_confidence }}</strong>
             </article>
             <article class="stat-card">
                 <p>Highest Confidence</p>
-                <strong>{{ max_confidence }}</strong>
+                <strong id="stat-max-confidence">{{ max_confidence }}</strong>
             </article>
             <article class="stat-card">
                 <p>Lowest Confidence</p>
-                <strong>{{ min_confidence }}</strong>
+                <strong id="stat-min-confidence">{{ min_confidence }}</strong>
             </article>
         </div>
     </section>
 
     <section class="card reveal delay-1">
-        <h2>Mode Split</h2>
-        {% if mode_breakdown %}
-            <div class="bar-list">
-                {% for row in mode_breakdown %}
-                <div class="bar-item">
-                    <div class="bar-meta">
-                        <span>{{ row.mode_label }}</span>
-                        <span>{{ row.count }}</span>
-                    </div>
-                    <div class="bar-track">
-                        <div class="bar-fill" data-width="{{ row.width_pct }}"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty">No data available yet.</p>
-        {% endif %}
+        <h2>Mode Split (Live)</h2>
+        <div class="chart-wrap">
+            <canvas id="mode-split-chart" aria-label="Mode split chart"></canvas>
+        </div>
+        <p id="mode-empty" class="empty" style="display:none;">No data available yet.</p>
     </section>
 
     <section class="card reveal">
-        <h2>Confidence Distribution</h2>
-        {% if confidence_distribution %}
-            <div class="bar-list">
-                {% for row in confidence_distribution %}
-                <div class="bar-item">
-                    <div class="bar-meta">
-                        <span>Score {{ row.score }}</span>
-                        <span>{{ row.count }}</span>
-                    </div>
-                    <div class="bar-track">
-                        <div class="bar-fill" data-width="{{ row.width_pct }}"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="empty">No confidence scores yet.</p>
-        {% endif %}
+        <h2>Confidence Distribution (Live)</h2>
+        <div class="chart-wrap">
+            <canvas id="confidence-chart" aria-label="Confidence distribution chart"></canvas>
+        </div>
+        <p id="confidence-empty" class="empty" style="display:none;">No confidence scores yet.</p>
     </section>
 
     <section class="card reveal delay-1">
-        <h2>Top Theses</h2>
-        <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Thesis</th>
-                        <th>Runs</th>
-                        <th>Avg Confidence</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in top_theses %}
-                    <tr>
-                        <td>{{ row.thesis }}</td>
-                        <td>{{ row.run_count }}</td>
-                        <td>{{ row.avg_confidence }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3">No thesis history yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <h2>Top Theses by Avg Confidence (Live)</h2>
+        <div class="chart-wrap chart-wrap-tall">
+            <canvas id="top-theses-chart" aria-label="Top theses chart"></canvas>
         </div>
+        <p id="theses-empty" class="empty" style="display:none;">No thesis history yet.</p>
     </section>
 
     <section class="card reveal">
@@ -150,11 +104,144 @@
         </div>
     </section>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-    document.querySelectorAll('.bar-fill[data-width]').forEach((node) => {
-        const width = Number(node.dataset.width || '0');
-        node.style.width = `${Math.max(0, Math.min(100, width))}%`;
+    const initialData = {
+        report_count: {{ report_count | tojson }},
+        avg_confidence: {{ avg_confidence | tojson }},
+        max_confidence: {{ max_confidence | tojson }},
+        min_confidence: {{ min_confidence | tojson }},
+        mode_breakdown: {{ mode_breakdown | tojson }},
+        confidence_distribution: {{ confidence_distribution | tojson }},
+        top_theses: {{ top_theses | tojson }},
+    };
+
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = String(value);
+        }
+    }
+
+    function toggleEmpty(id, shouldShow) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = shouldShow ? 'block' : 'none';
+        }
+    }
+
+    function chartTextColor() {
+        return getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#ffffff';
+    }
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+            legend: {
+                labels: { color: chartTextColor() }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: chartTextColor() },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+            },
+            y: {
+                ticks: { color: chartTextColor() },
+                grid: { color: 'rgba(255,255,255,0.08)' }
+            }
+        }
+    };
+
+    const modeChart = new Chart(document.getElementById('mode-split-chart'), {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    labels: { color: chartTextColor() }
+                }
+            }
+        }
     });
+
+    const confidenceChart = new Chart(document.getElementById('confidence-chart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Report Count', data: [], backgroundColor: 'rgba(255,255,255,0.78)', borderColor: '#ffffff', borderWidth: 1 }] },
+        options: commonOptions
+    });
+
+    const topThesesChart = new Chart(document.getElementById('top-theses-chart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Avg Confidence', data: [], backgroundColor: 'rgba(255,255,255,0.78)', borderColor: '#ffffff', borderWidth: 1 }] },
+        options: {
+            ...commonOptions,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    ticks: { color: chartTextColor() },
+                    grid: { color: 'rgba(255,255,255,0.08)' },
+                    suggestedMin: 0,
+                    suggestedMax: 10
+                },
+                y: {
+                    ticks: { color: chartTextColor() },
+                    grid: { color: 'rgba(255,255,255,0.08)' }
+                }
+            }
+        }
+    });
+
+    function applyData(payload) {
+        setText('stat-report-count', payload.report_count ?? 0);
+        setText('stat-avg-confidence', payload.avg_confidence ?? 0);
+        setText('stat-max-confidence', payload.max_confidence ?? 0);
+        setText('stat-min-confidence', payload.min_confidence ?? 0);
+
+        const modeData = payload.mode_breakdown || [];
+        modeChart.data.labels = modeData.map((row) => row.mode_label || row.mode || 'Unknown');
+        modeChart.data.datasets[0].data = modeData.map((row) => Number(row.count || 0));
+        modeChart.update();
+        toggleEmpty('mode-empty', modeData.length === 0);
+
+        const confidenceData = payload.confidence_distribution || [];
+        confidenceChart.data.labels = confidenceData.map((row) => `Score ${row.score}`);
+        confidenceChart.data.datasets[0].data = confidenceData.map((row) => Number(row.count || 0));
+        confidenceChart.update();
+        toggleEmpty('confidence-empty', confidenceData.length === 0);
+
+        const thesisData = payload.top_theses || [];
+        topThesesChart.data.labels = thesisData.map((row) => {
+            const text = row.thesis || 'Untitled thesis';
+            return text.length > 56 ? `${text.slice(0, 56)}...` : text;
+        });
+        topThesesChart.data.datasets[0].data = thesisData.map((row) => Number(row.avg_confidence || 0));
+        topThesesChart.update();
+        toggleEmpty('theses-empty', thesisData.length === 0);
+    }
+
+    async function refreshInsightsCharts() {
+        try {
+            const response = await fetch('{{ url_for("insights_data") }}', {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) {
+                return;
+            }
+            const payload = await response.json();
+            applyData(payload);
+        } catch (error) {
+            console.warn('Live insights refresh failed.', error);
+        }
+    }
+
+    applyData(initialData);
+    setInterval(refreshInsightsCharts, 30000);
 </script>
 </body>
 </html>

@@ -56,8 +56,17 @@
     </section>
 
     <section class="card reveal delay-1">
-        <h2>Recent Memos</h2>
-        <p class="sub">Your latest outputs.</p>
+        <div class="card-section-head">
+            <div>
+                <h2>Recent Memos</h2>
+                <p class="sub">Your latest outputs.</p>
+            </div>
+            {% if reports %}
+            <form method="post" action="{{ url_for('clear_recent_memos') }}" class="inline-actions" onsubmit="return confirm('Delete all your saved memos? This cannot be undone.');">
+                <button type="submit" class="btn ghost">Clear recent memos</button>
+            </form>
+            {% endif %}
+        </div>
         <div class="memo-list">
             {% if reports %}
                 {% for r in reports %}

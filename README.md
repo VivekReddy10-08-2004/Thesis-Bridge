@@ -262,9 +262,37 @@ If you see `psycopg.errors.ConnectionTimeout`:
 ### Future Enhancements
 - [ ] OpenAI integration for alternative LLM
 - [ ] Advanced filtering (date range, industry vertical)
-- [ ] Chart/graph visualization
+- [x] Chart/graph visualization (live insights charts with polling)
 - [ ] Email report delivery
 - [ ] Team collaboration & shared reports
+
+---
+
+## 📈 Implementation Notes: Live Insights Charts
+
+### What was added
+- Added a new authenticated API endpoint: `GET /insights/data`
+- Updated `templates/insights.html` to render Chart.js charts for:
+  - Mode split (doughnut)
+  - Confidence distribution (bar)
+  - Top theses by average confidence (horizontal bar)
+- Added client-side polling every 30 seconds to refresh charts and snapshot stat cards without page reload
+- Added chart container styles in `static/app.css` (`.chart-wrap`, `.chart-wrap-tall`)
+
+### Why this approach
+- Reuses your existing SQL aggregates and data model with minimal backend risk
+- Keeps dashboard UX responsive and easy to scan for trend shifts
+- Avoids websocket complexity for this stage while still providing near-live updates
+
+### Files touched
+- `web_app.py`
+- `templates/insights.html`
+- `static/app.css`
+
+### Operational notes
+- Charts load from CDN: `https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js`
+- If CDN access is restricted, vendor Chart.js locally in `static/` and update the script tag path
+- Poll interval is currently `30000` ms; adjust in `templates/insights.html` if needed
 
 ---
 
